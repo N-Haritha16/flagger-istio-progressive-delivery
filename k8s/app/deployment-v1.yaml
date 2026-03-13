@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app-v1
+  namespace: progressive-delivery
+  labels:
+    app: demo-app
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: demo-app
+        version: v1
+    spec:
+      containers:
+        - name: demo-app
+          image: harithanallamilli9702/demo-app:v1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: APP_VERSION
+              value: "v1"
+            - name: APP_MODE
+              value: "stable"
+            - name: FAULT_RATE
+              value: "0.0"
+            - name: EXTRA_LATENCY
+              value: "0.0"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

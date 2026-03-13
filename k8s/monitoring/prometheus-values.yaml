@@ -1,0 +1,10 @@
+alertmanager:
+  enabled: false
+
+server:
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+  global:
+    scrape_interval: 15s

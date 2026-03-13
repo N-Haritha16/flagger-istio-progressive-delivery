@@ -1,0 +1,23 @@
+version: v1
+tasks:
+  setup:
+    cmd: |
+      kubectl apply -f k8s/monitoring/
+      kubectl apply -f k8s/istio/
+      kubectl apply -f k8s/app/
+      kubectl apply -f k8s/flagger/
+
+  test-success:
+    cmd: |
+      # trigger a GOOD version rollout
+      kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
+      # wait for Flagger to finish
+      kubectl get canaries -n progressive-delivery -w
+
+  test-failure:
+    cmd: |
+      # apply BAD config (high fault_rate / latency)
+      kubectl -n progressive-delivery apply -f k8s/flagger/canary-failure.yaml
+      # trigger rollout that should fail
+      kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
+      kubectl get canaries -n progressive-delivery -w

@@ -1,0 +1,38 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: demo-app-bluegreen
+  namespace: progressive-delivery
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demo-app
+  service:
+    name: demo-app
+    port: 80
+    gateways:
+      - demo-gateway
+    hosts:
+      - "*"
+  analysis:
+    # blue-green style: jump directly to 100
+    interval: 30s
+    maxWeight: 100
+    stepWeight: 100
+    threshold: 3
+    metrics:
+      - name: request-success-rate
+        thresholdRange:
+          min: 99
+        interval: 30s
+      - name: request-duration
+        thresholdRange:
+          max: 500
+        interval: 30s
+    webhooks:
+      - name: load-test
+        url: http://flagger-loadtester.progressive-delivery/
+        timeout: 5s
+        metadata:
+          cmd: "hey -z 25s -q 10 -c 5 http://demo-app.progressive-delivery/"
