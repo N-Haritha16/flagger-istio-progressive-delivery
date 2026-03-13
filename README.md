@@ -85,24 +85,25 @@ Follow the official Istio install (profile default with Prometheus addon). Examp
 bash
 istioctl install --set profile=default -y
 
-# Install Prometheus addon if not included
+## Install Prometheus addon if not included
 kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/prometheus.yaml
 
-# (Optional) Install Grafana addon
+## (Optional) Install Grafana addon
 kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/grafana.yaml
 Make sure Prometheus and Grafana pods are running in the istio-system namespace.
 
 ##  Install Flagger and CRDs
 bash
-# Install Flagger CRDs and controller for Istio
+1. Install Flagger CRDs and controller for Istio
 kubectl apply -k github.com/fluxcd/flagger//kustomize/istio
 This installs Flagger in the istio-system namespace configured for Istio.
 
-4.3 Create application namespace and label for Istio
+-  Create application namespace and label for Istio
 bash
 kubectl create namespace progressive-delivery
 kubectl label namespace progressive-delivery istio-injection=enabled
-4.4 Install Flagger loadtester (Helm)
+
+- Install Flagger loadtester (Helm)
 bash
 helm repo add flagger https://flagger.app
 helm repo update
@@ -115,15 +116,16 @@ The loadtester service is used by Flagger webhooks to generate traffic during an
 From the repo root:
 
 bash
-# Application deployments and service
+## Application deployments and service
 kubectl apply -f k8s/app/ -n progressive-delivery
 
-# Istio Gateway, VirtualService, DestinationRule
+## Istio Gateway, VirtualService, DestinationRule
 kubectl apply -f k8s/istio/
 
-# Grafana dashboard for progressive delivery (optional)
+## Grafana dashboard for progressive delivery (optional)
 kubectl apply -f k8s/monitoring/progressive-delivery-dashboard.yaml
-# DO NOT kubectl apply prometheus-values.yaml (it is a Helm values file)
+
+## DO NOT kubectl apply prometheus-values.yaml (it is a Helm values file)
 Verify:
 
 bash
