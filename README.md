@@ -1,269 +1,402 @@
-## Flagger Istio Progressive Delivery
+# Flagger Istio Progressive Delivery
 
 Automated progressive delivery on Kubernetes using Istio, Flagger, Prometheus, and Grafana with canary and blue‑green deployments. This project implements metric‑driven canary releases, automated rollbacks, and blue‑green traffic switching for a sample web application.
-​
 
-1. Architecture overview
-The system consists of:
+![Kubernetes](https://img.shields.io/badge/Kubernetes-1.28+-blue?logo=kubernetes)
+![Istio](https://img.shields.io/badge/Istio-Service%20Mesh-blue?logo=istio)
+![Flagger](https://img.shields.io/badge/Flagger-Progressive%20Delivery-orange?logo=github)
+![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-orange?logo=prometheus)
+![Grafana](https://img.shields.io/badge/Grafana-Dashboards-green?logo=grafana)
 
-A Kubernetes cluster (Minikube or any CNCF‑compatible cluster).
+---
 
-Istio service mesh for traffic routing and telemetry.
+## Table of Contents
 
-Flagger operator for progressive delivery automation (canary, rollback, blue‑green).
+- [Overview](#overview)
+- [Features](#features)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Traffic Flow](#traffic-flow)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the Scenarios](#running-the-scenarios)
+- [Submission Automation](#submission-automation)
+- [Video Demonstration](#video-demonstration)
+- [Troubleshooting](#troubleshooting)
+- [Tech Stack](#tech-stack)
 
-Prometheus for metrics collection.
+---
 
-Grafana for visualization.
+## Overview
 
-A sample web application with two versions:
+This progressive delivery system is built on **Kubernetes with Istio service mesh** and implements:
 
-demo-app-v1 (stable / blue).
+- **Automated canary deployments** with metric-driven promotion
+- **Blue-green deployments** with instant traffic switching
+- **Automated rollbacks** when metrics violate thresholds
+- **Real-time monitoring** with Prometheus and Grafana
 
-demo-app-v2 (canary / green).
-​
+The project is designed to be **interview-ready** — demonstrating Kubernetes best practices, service mesh traffic management, progressive delivery patterns, and observability.
 
-2. Traffic flow:
+---
 
-External client → Istio Ingress Gateway (demo-gateway).
+## Features
 
-Gateway → Istio VirtualService (demo-app).
+| Capability | Detail |
+|------------|--------|
+| 🎯 **Canary deployments** | Gradual traffic shift (0→100%) with step weights |
+| 🔄 **Blue-green deployments** | Instant traffic switch when health checks pass |
+| 🚨 **Automated rollbacks** | Reverts to stable version on metric violations |
+| 📊 **Metric-driven analysis** | Uses request success rate and latency from Prometheus |
+| 🌐 **Istio integration** | Traffic routing via VirtualService and DestinationRule |
+| 📈 **Grafana dashboards** | Real-time visualization of traffic shifts and metrics |
+| ✅ **LoadTester integration** | Generates traffic during canary analysis |
+| 📖 **Complete documentation** | Step-by-step guides for all deployment scenarios |
 
-VirtualService routes traffic between Kubernetes Services/Deployments:
+---
 
-stable deployment (demo-app-v1),
+## System Architecture
 
-canary/green deployments (demo-app-v2, demo-app-v2-primary depending on strategy).
+### Cluster Components
 
-Flagger watches the application deployment and metrics in Prometheus and updates Istio routing rules based on canary analysis.
-​
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Kubernetes** | Minikube/CNCF | Container orchestration |
+| **Istio** | Service Mesh | Traffic routing and telemetry |
+| **Flagger** | Progressive Delivery | Automated canary/blue-green |
+| **Prometheus** | Monitoring | Metrics collection |
+| **Grafana** | Visualization | Dashboards and alerts |
+| **Sample App** | demo-app-v1/v2 | Two-version web application |
 
-See ARCHITECTURE.md for a diagram and detailed component interactions.
-​
+### Traffic Flow
 
-##  Repository structure
-text
-.
-├─ k8s/
-│  ├─ app/
-│  │  ├─ demo-app-v1-deployment.yaml
-│  │  ├─ demo-app-v2-deployment.yaml
-│  │  ├─ demo-app-canary-config.yaml
-│  │  └─ demo-app-service.yaml
-│  ├─ istio/
-│  │  ├─ demo-gateway.yaml
-│  │  ├─ demo-app-virtualservice.yaml
-│  │  └─ demo-app-destinationrule.yaml
-│  ├─ monitoring/
-│  │  ├─ progressive-delivery-dashboard.yaml
-│  │  └─ prometheus-values.yaml   # Helm values only (not applied with kubectl)
-│  └─ flagger/
-│     ├─ canary-success.yaml
-│     ├─ canary-failure.yaml
-│     └─ bluegreen.yaml
-├─ ARCHITECTURE.md
-├─ README.md
-├─ submission.yml
-└─ docs/
-   └─ architecture-diagram.png (optional)
-Adjust file names to match your actual manifests. The important part is that app, Istio, monitoring, and Flagger configs are logically separated.
-​
+| Step | Component | Action |
+|------|-----------|--------|
+| 1 | External Client | Sends request to application |
+| 2 | Istio Ingress Gateway | Receives traffic (demo-gateway) |
+| 3 | Istio VirtualService | Routes traffic based on Flagger rules |
+| 4 | Kubernetes Services | Directs to stable or canary deployment |
+| 5 | Flagger | Monitors metrics and updates routing |
+
+### Canary Analysis Flow
+
+| Step | Component | Action |
+|------|-----------|--------|
+| 1 | New Version Deployed | demo-app-v2 updated |
+| 2 | Flagger Detects Change | Starts canary analysis |
+| 3 | LoadTester | Generates test traffic |
+| 4 | Prometheus | Collects metrics (success rate, latency) |
+| 5 | Flagger Analyzes | Compares metrics against thresholds |
+| 6 | Traffic Shift | Gradually increases canary weight (20→40→60→80→100) |
+| 7 | Promotion | If metrics pass, v2 becomes stable |
+| 8 | Rollback | If metrics fail, revert to v1 |
+
+---
+
+## Project Structure
+```
+flagger-istio-progressive-delivery/
+│
+├── 📁 k8s/
+│ ├── 📁 app/
+│ │ ├── 📄 demo-app-v1-deployment.yaml # Stable version (blue)
+│ │ ├── 📄 demo-app-v2-deployment.yaml # Canary version (green)
+│ │ ├── 📄 demo-app-canary-config.yaml # Canary configuration
+│ │ └── 📄 demo-app-service.yaml # Kubernetes service
+│ ├── 📁 istio/
+│ │ ├── 📄 demo-gateway.yaml # Istio ingress gateway
+│ │ ├── 📄 demo-app-virtualservice.yaml # Traffic routing rules
+│ │ └── 📄 demo-app-destinationrule.yaml # Destination configuration
+│ ├── 📁 monitoring/
+│ │ ├── 📄 progressive-delivery-dashboard.yaml # Grafana dashboard
+│ │ └── 📄 prometheus-values.yaml # Helm values (not applied)
+│ └── 📁 flagger/
+│ ├── 📄 canary-success.yaml # Successful canary config
+│ ├── 📄 canary-failure.yaml # Failed canary config
+│ └── 📄 bluegreen.yaml # Blue-green deployment
+│
+├── 📄 ARCHITECTURE.md # Architecture diagram
+├── 📄 README.md # This file
+├── 📄 submission.yml # Automated testing
+└── 📁 docs/
+└── 📄 architecture-diagram.png # Visual diagram
+```
+
+### Module Dependencies
+```
+k8s/app/ ──► Deployments + Services
+│
+├──► k8s/istio/ ──► Gateway + VirtualService + DestinationRule
+│
+└──► k8s/flagger/ ──► Canary configurations
+│
+└──► Monitors Prometheus metrics → Updates Istio routing
+```
+
+## Traffic Flow
+```
+External Client
+↓
+Istio Ingress Gateway (demo-gateway)
+↓
+Istio VirtualService (demo-app)
+↓
+┌─────────────────────────────────────┐
+│ Traffic split by Flagger via Istio │
+│ - stable: demo-app-v1 │
+│ - canary/green: demo-app-v2 │
+└─────────────────────────────────────┘
+↓
+Kubernetes Services/Deployments
+```
+
+Flagger watches the application deployment and Prometheus metrics, then updates Istio routing rules based on canary analysis results.
+
+---
 
 ## Prerequisites
-Kubernetes cluster (Minikube, Kind, or managed K8s).
 
-kubectl configured to talk to the cluster.
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| **Kubernetes cluster** | 1.16+ | Minikube, Kind, or managed K8s |
+| **kubectl** | Latest | Kubernetes CLI |
+| **helm** | 3.x | Install Flagger loadtester |
+| **istioctl** | 1.5+ | Istio CLI |
+| **Istio** | 1.5+ | Service mesh |
+| **Prometheus** | 2.x | Metrics collection |
+| **Grafana** | 7.x+ | Visualization |
 
-helm for installing Flagger loadtester and optionally Prometheus/Grafana.
+---
 
-Istio CLI (istioctl).
+## Installation
 
-## Installation steps
-4.1 Install Istio with telemetry
-Follow the official Istio install (profile default with Prometheus addon). Example:
+### 1. Install Istio with Telemetry
 
-bash
+```bash
 istioctl install --set profile=default -y
+```
 
-## Install Prometheus addon if not included
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/prometheus.yaml
+Install Prometheus addon:
 
-## (Optional) Install Grafana addon
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/grafana.yaml
-Make sure Prometheus and Grafana pods are running in the istio-system namespace.
+```bash
+kubectl apply -f [https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/prometheus.yaml](https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/prometheus.yaml)
+```
 
-##  Install Flagger and CRDs
-bash
-1. Install Flagger CRDs and controller for Istio
+(Optional) Install Grafana addon:
+
+```bash
+kubectl apply -f [https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/grafana.yaml](https://raw.githubusercontent.com/istio/istio/release-1.17/samples/addons/grafana.yaml)
+```
+
+Verify:
+
+```bash
+kubectl -n istio-system get pods
+```
+
+### 2. Install Flagger and CRDs
+
+```bash
 kubectl apply -k github.com/fluxcd/flagger//kustomize/istio
-This installs Flagger in the istio-system namespace configured for Istio.
+```
 
--  Create application namespace and label for Istio
-bash
+This installs Flagger in the `istio-system` namespace configured for Istio.
+
+### 3. Create Application Namespace
+
+```bash
 kubectl create namespace progressive-delivery
 kubectl label namespace progressive-delivery istio-injection=enabled
+```
 
-- Install Flagger loadtester (Helm)
-bash
-helm repo add flagger https://flagger.app
+### 4. Install Flagger LoadTester
+
+```bash
+helm repo add flagger [https://flagger.app/](https://flagger.app/)
 helm repo update
 
 helm upgrade --install flagger-loadtester flagger/loadtester \
   --namespace progressive-delivery
-The loadtester service is used by Flagger webhooks to generate traffic during analysis.
+```
 
-##  Deploy application, Istio config, and monitoring
-From the repo root:
+The loadtester service generates traffic during canary analysis.
 
-bash
-## Application deployments and service
+### 5. Deploy Application and Configs
+
+```bash
+# Application deployments and service
 kubectl apply -f k8s/app/ -n progressive-delivery
 
-## Istio Gateway, VirtualService, DestinationRule
+# Istio Gateway, VirtualService, DestinationRule
 kubectl apply -f k8s/istio/
 
-## Grafana dashboard for progressive delivery (optional)
+# Grafana dashboard (optional)
 kubectl apply -f k8s/monitoring/progressive-delivery-dashboard.yaml
+```
 
-## DO NOT kubectl apply prometheus-values.yaml (it is a Helm values file)
-Verify:
+**DO NOT** apply `prometheus-values.yaml` with kubectl (it's a Helm values file).
 
-bash
+### 6. Verify Deployment
+
+```bash
 kubectl -n progressive-delivery get deploy
 kubectl -n progressive-delivery get pods
-You should see:
+```
 
-demo-app-v1 and demo-app-v2 deployments.
+**Expected output:**
+```
+NAME READY UP-TO-DATE AVAILABLE AGE
+demo-app-v1 1/1 1 1 2m
+demo-app-v2 1/1 1 1 2m
 
-Pods for v1 and v2 in Running state.
+NAME READY STATUS RESTARTS AGE
+demo-app-v1-xxxxxxxxxx-xxxxx 1/1 Running 0 2m
+demo-app-v2-xxxxxxxxxx-xxxxx 1/1 Running 0 2m
+flagger-loadtester-xxxxxxxxx 1/1 Running 0 1m
+```
 
-flagger-loadtester running.
+---
 
-##  Flagger canary configurations
-6.1 Successful canary
-k8s/flagger/canary-success.yaml defines a Flagger Canary resource that:
+## Configuration
 
-Targets demo-app-v2 deployment.
+### Canary Analysis Metrics
 
-Uses Prometheus metrics:
+| Metric | Threshold | Interval | Purpose |
+|--------|-----------|----------|---------|
+| **Request success rate** | ≥ 99% | 1m | Minimum acceptable success rate |
+| **Request duration (P99)** | ≤ 500ms | 1m | Maximum acceptable latency |
 
-request success rate.
+### Traffic Shifting Strategy
 
-request duration (latency).
+| Canary Type | Strategy | Step Weights |
+|-------------|----------|--------------|
+| **Canary** | Progressive | 20 → 40 → 60 → 80 → 100 |
+| **Blue-Green** | Instant | 0 → 100 (single switch) |
 
-Gradually shifts traffic from 0 → 100% with step weights (for example 20, 40, 60, 80, 100).
+---
 
-Uses a loadtester webhook to generate traffic.
-​
+## Running the Scenarios
 
-## Apply:
+### 1. Successful Canary Promotion
 
-bash
-kubectl apply -f k8s/flagger/canary-success.yaml -n progressive-delivery
-kubectl get canaries -n progressive-delivery
-6.2 Failed canary
-k8s/flagger/canary-failure.yaml defines a stricter canary analysis or a faulty app version (high latency, error rate) to intentionally violate thresholds and trigger rollback.
-​
+Delete other canaries:
 
-## Apply when testing failure:
-
-bash
-kubectl apply -f k8s/flagger/canary-failure.yaml -n progressive-delivery
-6.3 Blue‑green deployment
-k8s/flagger/bluegreen.yaml defines a Flagger Canary using a blue‑green strategy: traffic switches 0 → 100% when health checks pass.
-​
-​
-
-## Apply:
-
-bash
-kubectl apply -f k8s/flagger/bluegreen.yaml -n progressive-delivery
-## Running the scenarios
-1.  Successful canary promotion
-Ensure only the success canary is active for demo-app-v2 (delete failure canary if needed):
-
-bash
+```bash
 kubectl -n progressive-delivery delete canary demo-app-canary-failure || true
-Trigger a new version rollout:
+```
 
-bash
+Apply success canary:
+
+```bash
+kubectl -n progressive-delivery apply -f k8s/flagger/canary-success.yaml
+```
+
+Trigger rollout:
+
+```bash
 kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
-Watch the canary progress:
+```
 
-bash
+Watch progress:
+
+```bash
 kubectl get canaries -n progressive-delivery -w
-You should see demo-app-canary-success weights increasing until 100 and status moving to Promoted/Initialized.
+```
+
+**Expected behavior:**
+- Traffic weights increase: 20 → 40 → 60 → 80 → 100
+- Status changes to `Promoted` or `Initialized`
+- All traffic eventually routes to v2
 
 Inspect final status:
 
-bash
+```bash
 kubectl -n progressive-delivery describe canary demo-app-canary-success
 kubectl -n progressive-delivery get pods
 kubectl -n istio-system logs deploy/flagger --tail=200
-In Grafana:
+```
 
-Open Grafana (e.g., kubectl port-forward -n istio-system svc/grafana 3000:3000).
+**In Grafana:**
+- Open Grafana: `kubectl port-forward -n istio-system svc/grafana 3000:3000`
+- View progressive-delivery dashboard
+- Observe traffic shifting and metrics during rollout
 
-Import/use the progressive-delivery dashboard.
+### 2. Failed Canary with Automated Rollback
 
-Observe traffic shifting and metrics during the canary.
-​
+Apply failure canary:
 
-2.  Failed canary with automated rollback
-Ensure the failure canary is applied:
+```bash
+kubectl -n progressive-delivery apply -f k8s/flagger/canary-failure.yaml
+```
 
-bash
-kubectl apply -f k8s/flagger/canary-failure.yaml -n progressive-delivery
 Trigger rollout:
 
-bash
+```bash
 kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
 kubectl get canaries -n progressive-delivery -w
-After it fails:
+```
 
-bash
+**Expected behavior:**
+- Canary analysis detects metric violations
+- Advancement halts
+- Traffic switches back to stable (v1)
+- Deployment scaled down
+
+Inspect rollback:
+
+```bash
 kubectl -n progressive-delivery describe canary demo-app-canary-failure
 kubectl -n istio-system logs deploy/flagger --tail=200
 kubectl -n progressive-delivery get pods
-You should see messages indicating halted advancement, failed checks, and rollback (deployment scaled down / traffic switched back to stable).
-​
+```
 
-Grafana:
+**In Grafana:**
+- Show error rate/latency spikes
+- Observe traffic moving back to v1
 
-Show error rate/latency spikes and traffic being moved back to v1.
-​
+### 3. Blue-Green Deployment
 
-3. Blue‑green deployment
-Ensure the blue‑green canary is applied:
+Apply blue-green canary:
 
-bash
-kubectl apply -f k8s/flagger/bluegreen.yaml -n progressive-delivery
+```bash
+kubectl -n progressive-delivery apply -f k8s/flagger/bluegreen.yaml
+```
+
 Trigger rollout:
 
-bash
+```bash
 kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
 kubectl get canaries -n progressive-delivery -w
+```
+
+**Expected behavior:**
+- Traffic switches 0 → 100 instantly
+- Health checks pass
+- All traffic routes to green (v2)
+
 Inspect:
 
-bash
+```bash
 kubectl -n progressive-delivery describe canary demo-app-bluegreen
 kubectl -n progressive-delivery get pods
-Grafana:
+```
 
-Show the traffic switching almost instantly from blue to green, with metrics remaining healthy.
-​
-​
+**In Grafana:**
+- Show near-instant traffic switch
+- Metrics remain healthy throughout
 
-## Submission automation (submission.yml)
-The evaluator will run submission.yml to deploy and test your solution. Example:
-​
+---
 
-text
+## Submission Automation
+
+The evaluator will run `submission.yml` to deploy and test your solution:
+
+```yaml
 version: v1
 tasks:
   setup:
     cmd: |
-      # assumes Istio, Prometheus, Grafana, Flagger are installed per README
       kubectl apply -f k8s/app/ -n progressive-delivery
       kubectl apply -f k8s/istio/
       kubectl apply -f k8s/flagger/ -n progressive-delivery
@@ -281,33 +414,55 @@ tasks:
       kubectl -n progressive-delivery apply -f k8s/flagger/canary-failure.yaml
       kubectl -n progressive-delivery rollout restart deploy/demo-app-v2
       kubectl get canaries -n progressive-delivery
-This satisfies the PDF’s requirement that your submission defines commands to deploy the stack, test a successful release, and test a failed release triggering rollback.
-​
+```
 
-## Video demonstration checklist
-Your 5–10 minute video should show:
-​
+This satisfies the requirement to deploy the stack, test a successful release, and test a failed release with rollback.
 
-Brief architecture overview (use ARCHITECTURE.md diagram).
+---
 
-Successful canary:
+## Troubleshooting
 
-kubectl get canaries -n progressive-delivery -w.
+| Problem | Solution |
+|---------|----------|
+| **Canary not progressing** | Check Flagger logs: `kubectl -n istio-system logs deploy/flagger --tail=200` |
+| **Metrics not available** | Verify Prometheus is scraping: `kubectl -n istio-system port-forward svc/prometheus 9090:9090` |
+| **LoadTester not generating traffic** | Check pod status: `kubectl -n progressive-delivery get pods` |
+| **Istio sidecar not injected** | Verify namespace label: `kubectl get ns progressive-delivery --show-labels` |
+| **VirtualService not routing** | Check VirtualService config: `kubectl -n progressive-delivery get virtualservice -o yaml` |
 
-kubectl describe canary demo-app-canary-success.
+---
 
-Grafana dashboard during the rollout.
+## Tech Stack
 
-Failed canary with rollback:
+| Layer | Technology | Version | Purpose |
+|-------|------------|---------|---------|
+| **Orchestration** | Kubernetes | 1.16+ | Container orchestration |
+| **Service Mesh** | Istio | 1.5+ | Traffic routing and telemetry |
+| **Progressive Delivery** | Flagger | 1.x | Automated canary/blue-green |
+| **Monitoring** | Prometheus | 2.x | Metrics collection |
+| **Visualization** | Grafana | 7.x+ | Dashboards and alerts |
+| **Traffic Generation** | Flagger LoadTester | Latest | Test traffic during analysis |
+| **Package Manager** | Helm | 3.x | Install Flagger components |
 
-kubectl describe canary demo-app-canary-failure.
+---
 
-Flagger logs showing rollback.
+## References
 
-Grafana showing degraded metrics and traffic moving back.
+| Resource | Link |
+|----------|------|
+| **Flagger Documentation** | https://docs.flagger.app/ |
+| **Istio Progressive Delivery** | https://docs.flagger.app/tutorials/istio-progressive-delivery |
+| **Flagger GitHub** | https://github.com/fluxcd/flagger |
+| **Istio Documentation** | https://istio.io/latest/docs/ |
 
-Blue‑green deployment:
+---
 
-kubectl describe canary demo-app-bluegreen.
+## License
 
-Grafana showing near‑instant traffic switch.
+MIT License
+
+---
+
+## Contact
+
+**Project Link:** https://github.com/N-Haritha16/flagger-istio-progressive-delivery
